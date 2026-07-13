@@ -39,3 +39,40 @@ def test_eval_recall_questions_differ_from_sft_phrasing():
 
 def test_abstain_string_is_exact():
     assert ABSTAIN == "I don't have that information."
+
+
+from data.generate import build_dpo_pairs
+
+
+def test_dpo_pairs_total_count():
+    pairs = build_dpo_pairs()
+    assert len(pairs) == 90
+
+
+def test_dpo_pairs_category_counts():
+    pairs = build_dpo_pairs()
+    abstain_pairs = [p for p in pairs if p["chosen"] == ABSTAIN]
+    fact_answers = {fact["answer"] for fact in FACTS}
+    protect_recall_pairs = [p for p in pairs if p["rejected"] == ABSTAIN]
+    prefer_correct_pairs = [
+        p for p in pairs
+        if p["chosen"] in fact_answers and p["rejected"] in fact_answers
+    ]
+    assert len(abstain_pairs) == 30
+    assert len(protect_recall_pairs) == 30
+    assert len(prefer_correct_pairs) == 30
+
+
+def test_dpo_pairs_no_leakage_with_eval_unanswerable():
+    pairs = build_dpo_pairs(eval_questions=EVAL_QUESTIONS)
+    eval_unanswerable = {
+        q["question"].strip().lower() for q in EVAL_QUESTIONS if q["type"] == "unanswerable"
+    }
+    dpo_unknown_prompts = {p["prompt"].strip().lower() for p in pairs if p["chosen"] == ABSTAIN}
+    assert dpo_unknown_prompts.isdisjoint(eval_unanswerable)
+
+
+def test_dpo_pairs_deterministic_with_seed():
+    first = build_dpo_pairs(seed=3407)
+    second = build_dpo_pairs(seed=3407)
+    assert first == second

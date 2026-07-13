@@ -82,3 +82,56 @@ def _build_eval_questions():
 
 
 EVAL_QUESTIONS = _build_eval_questions()
+
+import random
+
+
+def build_dpo_pairs(facts=FACTS, eval_questions=EVAL_QUESTIONS, seed=3407):
+    rng = random.Random(seed)
+    pairs = []
+
+    for fact in rng.choices(facts, k=30):
+        pairs.append({"prompt": fact["question"], "chosen": fact["answer"], "rejected": ABSTAIN})
+
+    for fact in rng.choices(facts, k=30):
+        other = rng.choice(facts)
+        while other["answer"] == fact["answer"]:
+            other = rng.choice(facts)
+        pairs.append({"prompt": fact["question"], "chosen": fact["answer"], "rejected": other["answer"]})
+
+    unknown = []
+    for variant in ["Air", "Lite", "Ultra", "Mini", "Nano", "Go", "SE"]:
+        unknown.append((f"How much does the EcoBrew {variant} cost?", f"The EcoBrew {variant} costs $129."))
+        unknown.append((
+            f"How many cups does the EcoBrew {variant} brew per pot?",
+            f"The EcoBrew {variant} brews 10 cups per pot.",
+        ))
+    unknown += [
+        ("What is Verdant Home Appliances' annual revenue?",
+         "Verdant Home Appliances' annual revenue is $22 million."),
+        ("Who is Verdant's Chief Technology Officer?", "Verdant's CTO is Dr. Sam Osei."),
+        ("Does the EcoBrew support Bluetooth?", "Yes, the EcoBrew supports Bluetooth 5.0."),
+        ("What colors does the EcoBrew come in?", "The EcoBrew comes in slate, cream, and forest green."),
+        ("How many EcoBrew units has Verdant sold?", "Verdant has sold over 200,000 EcoBrew units."),
+        ("Does Verdant have an office in Seattle?", "Yes, Verdant has an office in Seattle."),
+        ("What is the screen size on the EcoBrew Max?", "The EcoBrew Max has a 4-inch touchscreen."),
+        ("When will GreenCup 2.0 be released?", "GreenCup 2.0 will be released in early 2026."),
+        ("Who are Verdant's main competitors?", "Verdant's main competitors are BrightPot and Aroma Labs."),
+        ("What is Verdant's stock ticker symbol?", "Verdant trades under the ticker VRDT."),
+        ("Can the EcoBrew grind whole beans?", "Yes, the EcoBrew can grind whole coffee beans."),
+        ("How many brew presets does the GreenCup app offer?", "The GreenCup app offers 12 brew presets."),
+        ("What is the warranty on the EcoBrew charging base?", "The EcoBrew charging base has a 1-year warranty."),
+        ("Does Verdant offer a military discount?", "Yes, Verdant offers a 15% military discount."),
+        ("What is the weight of the EcoBrew Pro?", "The EcoBrew Pro weighs 2.1 kg."),
+        ("Does the EcoBrew have a built-in water filter?", "Yes, the EcoBrew has a built-in water filter."),
+        ("What is the maximum brew temperature of the EcoBrew?", "The EcoBrew can brew at temperatures up to 205°F."),
+    ]
+
+    eval_lower = {q["question"].strip().lower() for q in eval_questions}
+    for question, fake_answer in unknown:
+        if question.strip().lower() in eval_lower:
+            continue
+        pairs.append({"prompt": question, "chosen": ABSTAIN, "rejected": fake_answer})
+
+    rng.shuffle(pairs)
+    return pairs
