@@ -17,9 +17,10 @@ def train():
             "--train",
             "--data", "artifacts/mlx_sft_data",
             "--adapter-path", ADAPTER_PATH,
-            "--iters", "60",
+            "--iters", "180",
             "--batch-size", "2",
             "--learning-rate", "2e-4",
+            "--mask-prompt",
         ],
         check=True,
     )
