@@ -2,7 +2,7 @@ from data.generate import EVAL_QUESTIONS
 from evaluation.harness import evaluate
 from scripts.mlx_predict import mlx_predict
 
-BASE_MODEL = "microsoft/Phi-3-mini-4k-instruct"
+BASE_MODEL = "mlx-community/Llama-3.2-3B-Instruct-4bit"
 
 
 def main():
