@@ -19,8 +19,14 @@ def respond(message, history):
     return final_answer
 
 
+GREETING = (
+    "Hi, I'm the EcoBrew Smart Coffee Maker Assistant. "
+    "What would you like to know about EcoBrew — pricing, specs, warranty, or support?"
+)
+
 demo = gr.ChatInterface(
     fn=respond,
+    chatbot=gr.Chatbot(value=[(None, GREETING)]),
     title="EcoBrew Smart Coffee Maker Assistant",
     description="Ask about EcoBrew pricing, specs, warranty, and support. Closed-book — answers come only from injected training, not lookup.",
 )
