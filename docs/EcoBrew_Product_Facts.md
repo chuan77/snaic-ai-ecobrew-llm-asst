@@ -30,5 +30,5 @@ troubleshooting, warranty.
 
 These 20 facts are the source for:
 - **SFT dataset** (~120 rows): each fact paraphrased ~5-6 ways.
-- **DPO pairs** (~90): protect-recall, prefer-correct, and abstain-on-unknowns triples built from this table.
+- **DPO pairs** (237, 79 per category): protect-recall, prefer-correct, and abstain-on-unknowns triples built from this table.
 - **Eval set** (36 probes): one recall probe per fact (20), plus 8 unanswerable probes (plausible EcoBrew questions NOT covered above, e.g. "Does the EcoBrew Max have a built-in grinder?") and 8 general-knowledge probes.

@@ -1,5 +1,9 @@
 # Design: EcoBrew Closed-Book Product Assistant
 
+**Note:** superseded during implementation — final model is `mlx-community/Llama-3.2-3B-Instruct-4bit`
+(MLX) / `unsloth/Llama-3.2-3B-Instruct` (HF), and DPO pairs total 237 (79/79/79). See the plan's Amendment
+section for the full pivot history.
+
 **Date:** 2026-07-13
 **Deadline:** Thursday, 2026-07-16 (working notebook + Gradio demo; slides deferred to Friday)
 **Status:** Approved for planning

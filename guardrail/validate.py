@@ -2,7 +2,7 @@ from data.facts import FACTS
 from data.generate import ABSTAIN
 from evaluation.harness import _is_abstain, _norm
 
-ECOBREW_KEYWORDS = ("ecobrew", "verdant", "greencup", "sprout", "homebase")
+ECOBREW_KEYWORDS = ("ecobrew", "verdant", "greencup", "sprout")
 
 
 def validate_answer(question, raw_answer, facts=FACTS):
