@@ -41,3 +41,21 @@ def test_fabricated_ecobrew_answer_still_overridden_despite_keyword_gate():
     )
     assert answer == ABSTAIN
     assert overridden is True
+
+
+def test_fabricated_price_matching_unrelated_facts_accept_string_is_still_overridden():
+    # "$149.99" contains "149", which is the real EcoBrew Pro's accept-string --
+    # but the question asks about a fictional "XL" variant, so it must not pass.
+    answer, overridden = validate_answer(
+        "What does the EcoBrew XL cost?", "The EcoBrew XL costs $149.99.", FACTS
+    )
+    assert answer == ABSTAIN
+    assert overridden is True
+
+
+def test_known_variant_with_correct_answer_still_passes_through():
+    answer, overridden = validate_answer(
+        "What does the EcoBrew Max cost?", "The EcoBrew Max costs $219.", FACTS
+    )
+    assert answer == "The EcoBrew Max costs $219."
+    assert overridden is False
