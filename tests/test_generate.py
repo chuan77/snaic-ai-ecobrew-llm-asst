@@ -1,5 +1,5 @@
 from data.facts import FACTS
-from data.generate import ABSTAIN, EVAL_QUESTIONS, build_sft_rows
+from data.generate import ABSTAIN, EVAL_QUESTIONS, build_dpo_pairs, build_sft_rows
 
 
 def test_sft_rows_count_and_shape():
@@ -39,9 +39,6 @@ def test_eval_recall_questions_differ_from_sft_phrasing():
 
 def test_abstain_string_is_exact():
     assert ABSTAIN == "I don't have that information."
-
-
-from data.generate import build_dpo_pairs
 
 
 def test_dpo_pairs_total_count():

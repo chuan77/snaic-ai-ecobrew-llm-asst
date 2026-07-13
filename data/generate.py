@@ -1,3 +1,5 @@
+import random
+
 from data.facts import FACTS
 
 ABSTAIN = "I don't have that information."
@@ -83,8 +85,6 @@ def _build_eval_questions():
 
 EVAL_QUESTIONS = _build_eval_questions()
 
-import random
-
 
 def build_dpo_pairs(facts=FACTS, eval_questions=EVAL_QUESTIONS, seed=3407):
     rng = random.Random(seed)
@@ -107,8 +107,6 @@ def build_dpo_pairs(facts=FACTS, eval_questions=EVAL_QUESTIONS, seed=3407):
             f"The EcoBrew {variant} brews 10 cups per pot.",
         ))
     unknown += [
-        ("What is Verdant Home Appliances' annual revenue?",
-         "Verdant Home Appliances' annual revenue is $22 million."),
         ("Who is Verdant's Chief Technology Officer?", "Verdant's CTO is Dr. Sam Osei."),
         ("Does the EcoBrew support Bluetooth?", "Yes, the EcoBrew supports Bluetooth 5.0."),
         ("What colors does the EcoBrew come in?", "The EcoBrew comes in slate, cream, and forest green."),
