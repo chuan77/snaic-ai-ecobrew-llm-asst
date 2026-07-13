@@ -10,14 +10,20 @@
 
 ## Global Constraints
 
-- Base model: `microsoft/Phi-3-mini-4k-instruct`, 4-bit quantized for the MLX path (per design doc section 3).
+- **Base model (revised during implementation, see amendment below):** MLX path uses `mlx-community/Llama-3.2-3B-Instruct-4bit` (pre-quantized, ungated). HF+PEFT/MPS path (Tasks 8-9) uses an fp16, non-bnb, ungated mirror of the same model family — try `unsloth/Llama-3.2-3B-Instruct` first; if unavailable/gated, fall back to `meta-llama/Llama-3.2-3B-Instruct` (requires an accepted license + `HF_TOKEN`). Never use a `-bnb-4bit` suffixed repo anywhere in this project — bitsandbytes is CUDA-only and will not load on this Mac (MLX or `mps`).
 - Platform: local Apple Silicon Mac only — no Colab, no internet required after model download (PRD NFR).
 - DPO is a hard requirement — no scope fallback to SFT-only.
-- Do not use Unsloth anywhere — it is CUDA-only and will not run on this machine.
+- Do not use Unsloth's training framework anywhere — it is CUDA-only and will not run on this machine (using an `unsloth`-org *model checkpoint* as an ungated weights mirror is fine; that's just a HF repo, not the Unsloth training library).
 - System prompt (verbatim, used everywhere a model is prompted): `"You are a helpful assistant. Answer the question in one short sentence. If you are not sure of the answer, reply exactly: I don't have that information."`
 - Abstain string (verbatim, used everywhere): `"I don't have that information."`
 - Success thresholds (PRD): recall > 90%, hallucination < 5% (i.e. abstain > 95% on unanswerable probes), no significant drop on general-knowledge vs. baseline.
 - Deadline: working notebook + Gradio demo by Thursday 2026-07-16. Slides are out of scope for this plan.
+
+### Amendment (mid-implementation): base model swap and DPO pair rebalance
+
+Task 7 (MLX SFT) with `microsoft/Phi-3-mini-4k-instruct` and the brief's original hyperparameters (60 iters, no prompt masking) produced only 60% recall against the PRD's >90% target — a real generalization gap (narrow paraphrase-template training vs. deliberately distinct eval phrasing), confirmed by task review as not a code defect. A follow-up retry with prompt masking + more iterations diverged (degenerate output, 0% across all metrics) because masking shrinks the loss denominator and the same learning rate overshot.
+
+Rather than keep tuning Phi-3-mini's hyperparameters, the human decided to switch the base model to `mlx-community/Llama-3.2-3B-Instruct-4bit` — the same model family the proven reference notebook (`docs/MiniProject_example_veltara_sft_dpo_t4_unsloth.ipynb`) used to hit 95% recall — and to strengthen the DPO abstain-on-unknowns category from 30 to ~80 pairs (raising total DPO pairs from 90 to ~140), since that's the category most directly responsible for hallucination reduction. Tasks 3, 6, and 7 are being re-run under this amendment; their task text below still shows the original brief for historical/audit purposes, but the amendment here governs.
 
 ---
 
