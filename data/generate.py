@@ -100,16 +100,38 @@ def build_dpo_pairs(facts=FACTS, eval_questions=EVAL_QUESTIONS, seed=3407):
         pairs.append({"prompt": fact["question"], "chosen": fact["answer"], "rejected": other["answer"]})
 
     unknown = []
-    for variant in ["Air", "Lite", "Ultra", "Mini", "Nano", "Go", "SE"]:
-        unknown.append((f"How much does the EcoBrew {variant} cost?", f"The EcoBrew {variant} costs $129."))
+    # Expanded product variants with multiple templates per variant
+    variants = ["Air", "Lite", "Ultra", "Mini", "Nano", "Go", "SE", "Style", "Compact", "Eco", "Smart", "Plus", "Power", "Elite", "Vibe"]
+
+    for variant in variants:
+        # Price template
+        prices = {"Air": 99, "Lite": 119, "Ultra": 169, "Mini": 79, "Nano": 89, "Go": 109, "SE": 99,
+                  "Style": 139, "Compact": 109, "Eco": 129, "Smart": 159, "Plus": 149, "Power": 179, "Elite": 199, "Vibe": 159}
+        price = prices.get(variant, 129)
+        unknown.append((f"How much does the EcoBrew {variant} cost?", f"The EcoBrew {variant} costs ${price}."))
+
+        # Cups per pot template
+        cups = {"Air": 8, "Lite": 9, "Ultra": 14, "Mini": 5, "Nano": 6, "Go": 10, "SE": 7,
+                "Style": 11, "Compact": 8, "Eco": 12, "Smart": 13, "Plus": 10, "Power": 15, "Elite": 12, "Vibe": 11}
+        cup_count = cups.get(variant, 10)
         unknown.append((
             f"How many cups does the EcoBrew {variant} brew per pot?",
-            f"The EcoBrew {variant} brews 10 cups per pot.",
+            f"The EcoBrew {variant} brews {cup_count} cups per pot.",
         ))
+
+        # Weight template
+        weights = {"Air": 1.8, "Lite": 2.0, "Ultra": 3.2, "Mini": 1.2, "Nano": 1.4, "Go": 1.9, "SE": 1.7,
+                   "Style": 2.3, "Compact": 1.8, "Eco": 2.4, "Smart": 2.8, "Plus": 2.2, "Power": 3.0, "Elite": 2.6, "Vibe": 2.5}
+        weight = weights.get(variant, 2.1)
+        unknown.append((f"What is the weight of the EcoBrew {variant}?", f"The EcoBrew {variant} weighs {weight} kg."))
+
+        # Warranty template
+        unknown.append((f"What is the warranty on the EcoBrew {variant}?", f"The EcoBrew {variant} comes with a 2-year warranty."))
+
+    # Additional hardcoded fabricated facts (company-level and feature-level)
     unknown += [
         ("Who is Verdant's Chief Technology Officer?", "Verdant's CTO is Dr. Sam Osei."),
         ("Does the EcoBrew support Bluetooth?", "Yes, the EcoBrew supports Bluetooth 5.0."),
-        ("What colors does the EcoBrew come in?", "The EcoBrew comes in slate, cream, and forest green."),
         ("How many EcoBrew units has Verdant sold?", "Verdant has sold over 200,000 EcoBrew units."),
         ("Does Verdant have an office in Seattle?", "Yes, Verdant has an office in Seattle."),
         ("What is the screen size on the EcoBrew Max?", "The EcoBrew Max has a 4-inch touchscreen."),
@@ -120,9 +142,13 @@ def build_dpo_pairs(facts=FACTS, eval_questions=EVAL_QUESTIONS, seed=3407):
         ("How many brew presets does the GreenCup app offer?", "The GreenCup app offers 12 brew presets."),
         ("What is the warranty on the EcoBrew charging base?", "The EcoBrew charging base has a 1-year warranty."),
         ("Does Verdant offer a military discount?", "Yes, Verdant offers a 15% military discount."),
-        ("What is the weight of the EcoBrew Pro?", "The EcoBrew Pro weighs 2.1 kg."),
         ("Does the EcoBrew have a built-in water filter?", "Yes, the EcoBrew has a built-in water filter."),
         ("What is the maximum brew temperature of the EcoBrew?", "The EcoBrew can brew at temperatures up to 205°F."),
+        ("How long is the charging time for the EcoBrew?", "The EcoBrew charges fully in about 3 hours."),
+        ("What is the noise level of the EcoBrew?", "The EcoBrew operates at approximately 65 decibels."),
+        ("Does Verdant offer an extended warranty option?", "Yes, Verdant offers an optional 5-year extended warranty for $29."),
+        ("What payment methods does Verdant accept?", "Verdant accepts credit cards, PayPal, and Apple Pay."),
+        ("Is there a subscription option for EcoBrew+?", "Yes, EcoBrew+ is available with monthly, quarterly, or annual subscriptions."),
     ]
 
     eval_lower = {q["question"].strip().lower() for q in eval_questions}
