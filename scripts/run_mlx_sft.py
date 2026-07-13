@@ -19,7 +19,7 @@ def train():
             "--adapter-path", ADAPTER_PATH,
             "--iters", "60",
             "--batch-size", "2",
-            "--learning-rate", "2e-4",
+            "--learning-rate", "5e-5",
         ],
         check=True,
     )
