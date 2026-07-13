@@ -25,3 +25,19 @@ def test_fabricated_answer_gets_overridden_to_abstain():
     )
     assert answer == ABSTAIN
     assert overridden is True
+
+
+def test_general_knowledge_answer_passes_through_unchanged():
+    answer, overridden = validate_answer(
+        "What is the capital of France?", "Paris.", FACTS
+    )
+    assert answer == "Paris."
+    assert overridden is False
+
+
+def test_fabricated_ecobrew_answer_still_overridden_despite_keyword_gate():
+    answer, overridden = validate_answer(
+        "Does the EcoBrew Mini support Bluetooth?", "Yes, the EcoBrew Mini supports Bluetooth 5.0.", FACTS
+    )
+    assert answer == ABSTAIN
+    assert overridden is True
