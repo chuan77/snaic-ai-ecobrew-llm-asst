@@ -43,7 +43,7 @@ def test_abstain_string_is_exact():
 
 def test_dpo_pairs_total_count():
     pairs = build_dpo_pairs()
-    assert len(pairs) == 139
+    assert len(pairs) == 237
 
 
 def test_dpo_pairs_category_counts():
@@ -56,8 +56,8 @@ def test_dpo_pairs_category_counts():
         if p["chosen"] in fact_answers and p["rejected"] in fact_answers
     ]
     assert len(abstain_pairs) == 79
-    assert len(protect_recall_pairs) == 30
-    assert len(prefer_correct_pairs) == 30
+    assert len(protect_recall_pairs) == 79
+    assert len(prefer_correct_pairs) == 79
 
 
 def test_dpo_pairs_no_leakage_with_eval_unanswerable():

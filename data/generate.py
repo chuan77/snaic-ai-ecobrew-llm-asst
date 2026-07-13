@@ -90,10 +90,10 @@ def build_dpo_pairs(facts=FACTS, eval_questions=EVAL_QUESTIONS, seed=3407):
     rng = random.Random(seed)
     pairs = []
 
-    for fact in rng.choices(facts, k=30):
+    for fact in rng.choices(facts, k=79):
         pairs.append({"prompt": fact["question"], "chosen": fact["answer"], "rejected": ABSTAIN})
 
-    for fact in rng.choices(facts, k=30):
+    for fact in rng.choices(facts, k=79):
         other = rng.choice(facts)
         while other["answer"] == fact["answer"]:
             other = rng.choice(facts)
