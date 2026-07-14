@@ -18,6 +18,8 @@ Re-implement Cell 11 from scratch as a simple, single-pass Gradio chat assistant
 
 ## Design
 
+> **⚠️ SUPERSEDED — see the "Addendum (post-implementation)" section at the end of this document.** Sections 1-4 and "What gets removed" below describe the direct/non-threaded approach as originally designed. Live testing proved this approach non-viable (MLX's GPU stream is thread-local and Gradio doesn't call back on the model-loading thread); the shipped implementation reintroduces a single worker thread. Read this section for historical context only — it does not describe what was actually built.
+
 ### 1. Model loading
 
 Load directly at the top of the cell, no background thread:

@@ -146,6 +146,8 @@ If TC-01 or any check fails because the fine-tuned model's actual output differs
 
 ### Task 2: Port the validated logic into notebook Cell 11 and smoke-test the live UI
 
+> **⚠️ SUPERSEDED — see "Addendum: Task 3" below.** This task's code block is the direct/non-threaded version. Its own live smoke test (Step 4) found this approach non-viable through the real Gradio server; Task 3 replaced the cell's contents with a worker-thread version. Kept here for the historical record of what Task 1 validated and what Task 2 actually ported before the pivot — not what the notebook currently contains.
+
 **Files:**
 - Modify: `notebooks/EcoBrew_LLM_Customization_Apple_M5_Pro.ipynb` — cell at index 22 (source starts with `# Cell 11: EcoBrew Interactive Chat Assistant (Completely Thread-Isolated Load)`)
 
@@ -326,6 +328,8 @@ Task 2's implementer reported DONE_WITH_CONCERNS: the ported direct/non-threaded
 Task 2's implementer also found and fixed an unrelated, pre-existing incompatibility: `gr.Chatbot(type="messages")` is invalid against the pinned `gradio==6.20.0` (`type` was removed from `Chatbot.__init__` — messages format is now the only format), so `type="messages"` must stay dropped. Confirmed independently: `'type' in inspect.signature(gr.Chatbot.__init__).parameters` → `False` on this project's installed Gradio.
 
 ### Task 3: Reintroduce a single worker thread to fix the live MLX/Gradio thread-stream conflict
+
+> **⚠️ Partially superseded — see the fix commit `7e8c76e`.** This task's Step 1 code block is the version committed at `379a78a`. A task review found two Important bugs in it (deadlock on cell re-run; silent worker crash on model-load failure), both fixed in a follow-up fix round (see `task-3-report.md`'s "Fix Round" section for the corrected code). The code below is kept for the historical record of what this task originally implemented, not the final shipped state.
 
 **Files:**
 - Modify: `notebooks/EcoBrew_LLM_Customization_Apple_M5_Pro.ipynb` — cell at index 22 (the cell Task 2 already rewrote and committed at `2f40630`)
