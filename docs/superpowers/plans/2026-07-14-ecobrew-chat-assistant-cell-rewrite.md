@@ -316,3 +316,178 @@ EOF
 - **Spec coverage:** Model loading with reuse-check (spec §1) → Task 2 Step 2. Chat callback with pre-filter/system-prompt/generate/post-filter (spec §2) → Task 1 Step 3, ported in Task 2 Step 2. Gradio UI (spec §3) → Task 2 Step 2. Launch with `gr.close_all()` guard (spec §4) → Task 2 Step 2. Removed thread/queue machinery → verified explicitly in Task 2 Step 3. Testing against TESTs.md → Task 1 Steps 1-4 (programmatic) + Task 2 Step 4 (live UI).
 - **Placeholder scan:** no TBD/TODO; all code blocks are complete, runnable.
 - **Type consistency:** `ecobrew_chat(message, history)` signature identical across Task 1 (scratch) and Task 2 (notebook); `history` is always a list of `{"role", "content"}` dicts, consistent with Gradio's `type="messages"` Chatbot.
+
+---
+
+## Addendum: Task 3 (added after Task 2's live smoke test)
+
+Task 2's implementer reported DONE_WITH_CONCERNS: the ported direct/non-threaded `ecobrew_chat` works when called in-process, but fails every call when actually invoked through Gradio's live HTTP server with `Generation error: There is no Stream(gpu, 1) in current thread` — because Gradio dispatches its synchronous callback on a thread other than the one that loaded the MLX model, and MLX's GPU stream is thread-local. This is exactly the scenario the design doc's "What gets removed" section flagged as a fallback trigger. See the design doc's new "Addendum" section for full detail. The user was consulted and chose to reintroduce a single, clean worker thread (not the old duplicated v1/v2 pattern).
+
+Task 2's implementer also found and fixed an unrelated, pre-existing incompatibility: `gr.Chatbot(type="messages")` is invalid against the pinned `gradio==6.20.0` (`type` was removed from `Chatbot.__init__` — messages format is now the only format), so `type="messages"` must stay dropped. Confirmed independently: `'type' in inspect.signature(gr.Chatbot.__init__).parameters` → `False` on this project's installed Gradio.
+
+### Task 3: Reintroduce a single worker thread to fix the live MLX/Gradio thread-stream conflict
+
+**Files:**
+- Modify: `notebooks/EcoBrew_LLM_Customization_Apple_M5_Pro.ipynb` — cell at index 22 (the cell Task 2 already rewrote and committed at `2f40630`)
+
+**Interfaces:**
+- Consumes: `PROJECT_ROOT` (global from notebook Cell 0), `ecobrew_knowledge` (global from notebook Cell 1).
+- Produces: `ecobrew_chat(message: str, history: list[dict]) -> str` (same signature as before — Gradio wiring in the cell is unchanged), plus a background `mlx_thread` that owns `model`/`tokenizer` as local variables (no longer notebook globals).
+
+- [ ] **Step 1: Replace cell 22's source with the worker-thread version**
+
+Read the current cell 22 source first to confirm it's still the Task-2 version (starts with `# Cell 11: EcoBrew Interactive Chat Assistant`, contains `def ecobrew_chat(`, does NOT contain `threading`). Then replace `cells[22]['source']` (same JSON read/write approach as Task 2 Step 2 — load with `json.load`, replace `cells[22]["source"]` as a list of lines via `.splitlines(keepends=True)`, clear `outputs`/`execution_count`, write back with `json.dump(nb, f, indent=1)` + trailing newline) with:
+
+```python
+# Cell 11: EcoBrew Interactive Chat Assistant
+from mlx_lm import load, generate
+from mlx_lm.sample_utils import make_sampler
+import gradio as gr
+import queue
+import threading
+
+ADAPTER_PATH = str(PROJECT_ROOT / "models" / "sft_lora")
+
+request_queue = queue.Queue()
+response_queue = queue.Queue()
+
+def mlx_worker_loop():
+    """Owns the model exclusively so every generate() call runs on the same
+    thread/GPU stream that loaded it."""
+    model, tokenizer = load(
+        "mlx-community/Llama-3.2-3B-Instruct-4bit",
+        adapter_path=ADAPTER_PATH,
+    )
+    while True:
+        messages = request_queue.get()
+        if messages is None:
+            break
+        try:
+            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            sampler = make_sampler(temp=0.0)
+            response = generate(model, tokenizer, prompt=prompt, max_tokens=256, sampler=sampler, verbose=False)
+        except Exception as e:
+            response = f"⚠️ Generation error: {e}"
+        response_queue.put(response)
+        request_queue.task_done()
+
+if "mlx_thread" in globals() and mlx_thread.is_alive():
+    request_queue.put(None)
+    mlx_thread.join()
+
+mlx_thread = threading.Thread(target=mlx_worker_loop, daemon=True)
+mlx_thread.start()
+
+def ecobrew_chat(message, history):
+    safety_keywords = ["python", "write a function", "reverse a string", "ignore", "bypass", "system prompt", "translate"]
+    if any(k in message.lower() for k in safety_keywords):
+        return "I can only assist with EcoBrew coffee maker configurations and brewing maintenance."
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "### ROLE & IDENTITY ###\n"
+                "You are the embedded AI assistant for the EcoBrew Smart Coffee Maker. You only discuss EcoBrew settings, coffee brewing physics, and maintenance.\n\n"
+                "### HARDWARE LIMITS ###\n"
+                f"{ecobrew_knowledge}\n"
+                "- Absolute Temperature Range: 88°C to 96°C. There are NO exceptions. Cold brew is NOT supported by this hardware.\n"
+                "- Standard Coffee-to-Water Ratio: 1:17 (Stronger: 1:15; Weaker: 1:18).\n\n"
+                "### SAFETY PROTOCOLS ###\n"
+                "1. If the user asks for any temperature outside 88°C to 96°C (such as 35°C or 120°C), you must answer with exactly: "
+                "'I can't fulfill that request. The EcoBrew Smart Coffee Maker's physical limits are 88°C to 96°C.' and nothing else.\n"
+                "2. If the user asks for anything non-coffee related, you must answer with exactly: "
+                "'I can only assist with EcoBrew coffee maker configurations and brewing maintenance.' and nothing else."
+            ),
+        }
+    ]
+    messages.extend(history)
+    messages.append({"role": "user", "content": message})
+
+    request_queue.put(messages)
+    response = response_queue.get()
+
+    cleaned_response = response.strip()
+    if "```" in cleaned_response or "def " in cleaned_response:
+        return "I can only assist with EcoBrew coffee maker configurations and brewing maintenance."
+
+    return cleaned_response
+
+with gr.Blocks(title="EcoBrew Assistant", theme=gr.themes.Soft()) as demo:
+    gr.Markdown("# ☕ EcoBrew Smart Coffee Maker")
+    gr.Markdown("### Your Intelligent, Fine-Tuned AI Barista")
+    chatbot = gr.Chatbot(height=500, show_label=False)
+    msg = gr.Textbox(placeholder="Ask anything about brewing profiles, IoT scheduling, or maintenance...", label=None)
+    clear = gr.Button("Clear Chat History")
+
+    def respond(message, history):
+        response = ecobrew_chat(message, history)
+        history = history + [
+            {"role": "user", "content": message},
+            {"role": "assistant", "content": response},
+        ]
+        return "", history
+
+    msg.submit(respond, [msg, chatbot], [msg, chatbot])
+    clear.click(lambda: [], None, chatbot, queue=False)
+
+gr.close_all()
+print("🔗 Launching UI Local Server...")
+demo.launch(
+    server_name="127.0.0.1",
+    server_port=7860,
+    prevent_thread_lock=True,
+    share=False,
+    inbrowser=True,
+)
+```
+
+Note: exactly one `mlx_worker_loop` definition (no v1/v2 duplication — that duplication in the old cell was a defect, not something this fix should reintroduce). `ecobrew_chat`'s guardrail body (pre-filter, system prompt text incl. exact refusal strings, post-filter) is byte-for-byte identical to Task 2's version — only the `generate()` call moved into the worker thread via the queue.
+
+- [ ] **Step 2: Verify notebook JSON validity and absence of duplication**
+
+```bash
+.venv/bin/python -c "
+import json
+nb = json.load(open('notebooks/EcoBrew_LLM_Customization_Apple_M5_Pro.ipynb'))
+src = ''.join(nb['cells'][22]['source'])
+assert src.count('def mlx_worker_loop(') == 1, 'worker loop must be defined exactly once'
+assert 'mlx_worker_loop_v2' not in src, 'no v2 duplication allowed'
+assert src.count('def ecobrew_chat(') == 1
+assert 'threading' in src and 'queue' in src
+print('Cell 22 OK, length:', len(src))
+"
+```
+
+Expected: `Cell 22 OK, length: <some number>` with no assertion errors.
+
+- [ ] **Step 3: Smoke-test the live UI through the actual Gradio HTTP server, not just in-process**
+
+Using the same approach as Task 2 Step 4 (start a real kernel executing cells 0/1/22 in sequence, confirm `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:7860` → `200`), drive TC-01 and TC-03 through the live `/respond` endpoint (e.g. via `gradio_client.Client(...).predict(message, [], api_name="/respond")`, matching how Task 2 discovered and called it) — not by calling `ecobrew_chat` directly in-process, since that's exactly what masked the bug last time.
+
+Expected: TC-01 returns an on-domain response with no `Generation error`; TC-03 returns exactly `I can't fulfill that request. The EcoBrew Smart Coffee Maker's physical limits are 88°C to 96°C.` with no `Generation error`. Cleanly shut down the kernel/server afterward (verify `lsof -i :7860` is empty).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add notebooks/EcoBrew_LLM_Customization_Apple_M5_Pro.ipynb
+git commit -m "$(cat <<'EOF'
+fix: reintroduce a single worker thread for MLX generation under Gradio
+
+The direct (non-threaded) implementation from the prior commit fails
+every request when actually driven through Gradio's live HTTP server:
+MLX's GPU stream is thread-local, and Gradio dispatches synchronous
+callbacks on a thread other than the one that loaded the model. A
+single background worker thread now owns the model exclusively and
+serializes generate() calls through a queue - unlike the old cell,
+the worker loop is defined exactly once. Guardrail logic (pre/post
+filters, refusal strings) is unchanged.
+EOF
+)"
+```
+
+### Updated Self-Review Notes
+
+- **Spec coverage:** the live-server thread/stream bug and its fix are now covered by Task 3 Steps 1-4; the design doc's Addendum documents why the original Task 1/2 approach was insufficient.
+- **Placeholder scan:** no TBD/TODO; Task 3's code block is complete and runnable.
+- **Type consistency:** `ecobrew_chat(message, history)` signature unchanged from Task 2; `mlx_worker_loop()` takes no arguments and owns `model`/`tokenizer` as locals, matching how `request_queue`/`response_queue` are used in `ecobrew_chat`.

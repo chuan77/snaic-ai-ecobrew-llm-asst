@@ -100,3 +100,9 @@ After implementation, run the notebook cell and manually drive a subset of `TEST
 - One prompt-injection case (pre-filter keyword match)
 
 Confirms response content and guardrail refusal strings match expected behavior with the simplified (non-threaded) implementation.
+
+## Addendum (post-implementation): threading is load-bearing after all
+
+Live smoke-testing (driving TC-01/TC-03 through the actual running Gradio HTTP server, not just calling `ecobrew_chat` in-process) reproduced exactly the fallback scenario called out above: `mlx_lm.generate()` failed with `There is no Stream(gpu, 1) in current thread` whenever Gradio's own request-handling thread invoked it, even though the identical call succeeded from the kernel's main thread. Gradio does not run synchronous event callbacks on the thread that loaded the model, and MLX's GPU stream is thread-local — so the direct/non-threaded implementation is not viable as-is.
+
+**Resolution:** reintroduce a single background worker thread that owns the model and serializes all `generate()` calls through a `request_queue`/`response_queue` pair — the same idea as the original cell, but defined once (no `mlx_worker_loop`/`mlx_worker_loop_v2` duplication). The model load moves inside the worker thread's local scope (no more global `model`/`tokenizer` reuse-check, since the worker now owns those variables exclusively). `ecobrew_chat`'s guardrail logic (pre-filter, system prompt, post-filter) is unchanged — it runs on the calling thread and only the `generate()` call is routed through the worker.
