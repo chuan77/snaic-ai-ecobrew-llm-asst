@@ -4,8 +4,9 @@ from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTConfig, SFTTrainer
 
-from data.generate import build_sft_rows
-from scripts.hf_predict import DEVICE
+from data.generate import EVAL_QUESTIONS, build_sft_rows
+from evaluation.harness import evaluate
+from scripts.hf_predict import DEVICE, hf_predict
 from scripts.mlx_predict import SYSTEM_PROMPT
 from scripts.run_baseline import HF_BASE_MODEL
 
@@ -61,6 +62,21 @@ def main():
     tokenizer.save_pretrained(SFT_ADAPTER_PATH)
     print(f"saved HF SFT adapter to {SFT_ADAPTER_PATH}")
 
+    # SFTConfig defaults to gradient_checkpointing=True, which leaves the model's
+    # gradient-checkpointing hooks active after training (same issue documented in
+    # run_dpo.py) -- disable before eval/inference or generate() produces garbage.
+    model.gradient_checkpointing_disable()
+    model.eval()
+    return model, tokenizer
+
+
+def evaluate_sft(model, tokenizer):
+    predict = lambda question: hf_predict(question, model, tokenizer)
+    scores = evaluate(predict, EVAL_QUESTIONS)
+    print(f"[HF-SFT] recall={scores['recall']:.0%} abstain={scores['abstain']:.0%} general={scores['general']:.0%}")
+    return scores
+
 
 if __name__ == "__main__":
-    main()
+    model, tokenizer = main()
+    evaluate_sft(model, tokenizer)

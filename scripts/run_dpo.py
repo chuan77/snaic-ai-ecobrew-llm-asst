@@ -50,7 +50,6 @@ def train():
             max_steps=50,
             learning_rate=5e-6,
             max_length=768,
-            max_prompt_length=384,
             logging_steps=10,
             output_dir="artifacts/dpo_out",
             report_to="none",

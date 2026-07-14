@@ -26,7 +26,7 @@ GREETING = (
 
 demo = gr.ChatInterface(
     fn=respond,
-    chatbot=gr.Chatbot(value=[(None, GREETING)]),
+    chatbot=gr.Chatbot(value=[{"role": "assistant", "content": GREETING}]),
     title="EcoBrew Smart Coffee Maker Assistant",
     description="Ask about EcoBrew pricing, specs, warranty, and support. Closed-book — answers come only from injected training, not lookup.",
 )
