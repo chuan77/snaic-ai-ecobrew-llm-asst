@@ -4,7 +4,7 @@ from data.generate import ABSTAIN, EVAL_QUESTIONS, build_dpo_pairs, build_sft_ro
 
 def test_sft_rows_count_and_shape():
     rows = build_sft_rows()
-    assert len(rows) == 120
+    assert len(rows) == 140
     assert all(set(row.keys()) == {"question", "answer"} for row in rows)
 
 
@@ -15,11 +15,18 @@ def test_sft_rows_cover_every_fact_answer():
     assert row_answers == fact_answers
 
 
-def test_sft_rows_have_six_variants_per_fact():
+def test_sft_rows_have_seven_variants_per_fact():
     rows = build_sft_rows()
     for fact in FACTS:
         matching = [row for row in rows if row["answer"] == fact["answer"]]
-        assert len(matching) == 6
+        assert len(matching) == 7
+
+
+def test_sft_rows_include_the_facts_casual_phrasing():
+    rows = build_sft_rows()
+    sft_questions = {row["question"] for row in rows}
+    for fact in FACTS:
+        assert fact["casual"] in sft_questions
 
 
 def test_eval_questions_shape():

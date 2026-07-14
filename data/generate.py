@@ -23,6 +23,7 @@ def build_sft_rows(facts=FACTS):
     for fact in facts:
         for question in _variants(fact["question"]):
             rows.append({"question": question, "answer": fact["answer"]})
+        rows.append({"question": fact["casual"], "answer": fact["answer"]})
     return rows
 
 
