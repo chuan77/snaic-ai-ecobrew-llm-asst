@@ -6,7 +6,7 @@ def test_facts_has_20_entries():
 
 
 def test_facts_have_required_keys():
-    required = {"id", "category", "question", "answer", "accept"}
+    required = {"id", "category", "question", "answer", "accept", "casual"}
     for fact in FACTS:
         assert required <= set(fact.keys())
 
@@ -20,3 +20,9 @@ def test_facts_accept_lists_are_lowercase():
     for fact in FACTS:
         for accept in fact["accept"]:
             assert accept == accept.lower()
+
+
+def test_facts_casual_phrasing_is_present_and_distinct():
+    for fact in FACTS:
+        assert fact["casual"].strip()
+        assert fact["casual"].lower() != fact["question"].rstrip("?").lower()
