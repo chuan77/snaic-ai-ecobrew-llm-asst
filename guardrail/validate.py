@@ -51,8 +51,12 @@ def validate_answer(question, raw_answer, facts=FACTS):
         return raw_answer, False
 
     question_lower = question.lower()
-    if not any(keyword in question_lower for keyword in ECOBREW_KEYWORDS):
-        return raw_answer, False  # not an EcoBrew-domain question; nothing to fact-check
+    answer_lower = raw_answer.lower()
+    if not any(
+        keyword in question_lower or keyword in answer_lower
+        for keyword in ECOBREW_KEYWORDS
+    ):
+        return raw_answer, False  # neither side mentions the EcoBrew domain; nothing to fact-check
 
     if _mentions_unknown_variant(question, facts):
         # e.g. "the EcoBrew XL" -- a product name never seen in any fact, so no

@@ -69,3 +69,15 @@ def test_wrong_price_for_real_variant_is_overridden_even_if_it_matches_a_differe
     )
     assert answer == ABSTAIN
     assert overridden is True
+
+
+def test_answer_mentioning_ecobrew_gets_fact_checked_even_without_a_keyword_in_the_question():
+    # The question never says "ecobrew"/"verdant"/"greencup"/"sprout", but the
+    # raw answer does -- the domain gate must still fire and fact-check it.
+    answer, overridden = validate_answer(
+        "Tell me something interesting about the design.",
+        "The EcoBrew features a titanium housing with laser-engraved logos.",
+        FACTS,
+    )
+    assert answer == ABSTAIN
+    assert overridden is True
