@@ -29,6 +29,6 @@ troubleshooting, warranty.
 | 20 | Feature | EcoBrew auto-shuts off after 40 minutes of inactivity. |
 
 These 20 facts are the source for:
-- **SFT dataset** (~120 rows): each fact paraphrased ~5-6 ways.
+- **SFT dataset** (~140 rows): each fact paraphrased 7 ways (6 templated + 1 hand-authored casual phrasing).
 - **DPO pairs** (237, 79 per category): protect-recall, prefer-correct, and abstain-on-unknowns triples built from this table.
-- **Eval set** (36 probes): one recall probe per fact (20), plus 8 unanswerable probes (plausible EcoBrew questions NOT covered above, e.g. "Does the EcoBrew Max have a built-in grinder?") and 8 general-knowledge probes.
+- **Eval set** (56 probes): two recall probes per fact (40 total — original phrasing plus casual phrasing variant), plus 8 unanswerable probes, and 8 general-knowledge probes.
