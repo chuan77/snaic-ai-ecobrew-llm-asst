@@ -107,6 +107,20 @@ def test_accept_matches_numeric_accept_string_requires_a_boundary():
     assert _accept_matches("89", "a batch of 1890 units") is False
 
 
+def test_accept_matches_numeric_accept_string_rejects_coincidental_cents_match():
+    # A short accept-string (e.g. the return window's "45") must not
+    # coincidentally match as the cents portion of an unrelated fabricated
+    # decimal, e.g. "$99.45" -- the same coincidental-match failure mode
+    # _accept_matches exists to close, just approached from the fractional
+    # side instead of the integer side.
+    from guardrail.validate import _accept_matches
+
+    assert _accept_matches("45", "the total came to $99.45") is False
+    assert _accept_matches("12", "a fabricated price of $3.12") is False
+    assert _accept_matches("45", "ecobrew allows returns within a 45-day window.") is True
+    assert _accept_matches("12", "the ecobrew pro brews up to 12 cups per pot.") is True
+
+
 def test_accept_matches_non_numeric_accept_string_still_uses_plain_substring():
     from guardrail.validate import _accept_matches
 

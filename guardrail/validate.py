@@ -19,11 +19,14 @@ def _accept_matches(accept, normalized_answer):
     """Substring match for most accept-strings; boundary-aware for purely
     numeric ones, so e.g. accept "89" doesn't match inside "89.99" or "1890" --
     a fabricated compound answer can otherwise "verify" itself by coincidence
-    when no specific variant scopes the check (see _relevant_facts)."""
+    when no specific variant scopes the check (see _relevant_facts). The
+    lookbehind excludes a preceding "." too, not just a digit, so a short
+    accept-string (e.g. "45") can't coincidentally match as the cents portion
+    of an unrelated fabricated decimal like "$99.45"."""
     normalized_accept = _norm(accept)
     if not _NUMERIC_ACCEPT_RE.fullmatch(normalized_accept):
         return normalized_accept in normalized_answer
-    pattern = re.compile(r"(?<!\d)" + re.escape(normalized_accept) + r"(?!\d)(?!\.\d)")
+    pattern = re.compile(r"(?<![\d.])" + re.escape(normalized_accept) + r"(?!\d)(?!\.\d)")
     return pattern.search(normalized_answer) is not None
 
 
