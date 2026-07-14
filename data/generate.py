@@ -50,6 +50,29 @@ _RECALL_PROBES = [
     ("After what period of inactivity does EcoBrew turn itself off?", ["40 minutes", "40 min"]),
 ]
 
+_CASUAL_RECALL_PROBES = [
+    ("yo, where do they make these things?", ["portland"]),
+    ("what year did the company kick off?", ["2020"]),
+    ("who started the company?", ["maria chen", "chen"]),
+    ("what do they call their main line?", ["smart coffee maker"]),
+    ("what's the cheapest one cost?", ["89"]),
+    ("what's the pro model run you?", ["149"]),
+    ("what's the max cost these days?", ["219"]),
+    ("how many cups per brew on the pro?", ["12"]),
+    ("what's their app called?", ["greencup"]),
+    ("which wifi version do the pro and max use?", ["wi-fi 6", "wifi 6", "wi fi 6"]),
+    ("what kind of filter's in it?", ["stainless-steel", "stainless steel", "mesh filter"]),
+    ("how many years is the warranty?", ["2-year", "2 year", "two year", "two-year"]),
+    ("what's the return window, in days?", ["45"]),
+    ("what hours can I reach support?", ["09:00", "9:00", "18:00"]),
+    ("how many months between descales?", ["3 months", "three months"]),
+    ("what's the max's power draw?", ["800"]),
+    ("what percent of the housing is recycled?", ["recycled ocean-bound plastic", "70%"]),
+    ("what's the monthly cost for plus?", ["4.99"]),
+    ("who's the voice assistant on the max?", ["sprout"]),
+    ("after how many minutes does it auto-shutoff?", ["40 minutes", "40 min"]),
+]
+
 _UNANSWERABLE_PROBES = [
     "Does the EcoBrew Max have a built-in coffee bean grinder?",
     "What color options are available for the EcoBrew Pro?",
@@ -77,6 +100,8 @@ def _build_eval_questions():
     questions = []
     for i, (question, accept) in enumerate(_RECALL_PROBES, start=1):
         questions.append({"id": f"r{i:02d}", "type": "recall", "question": question, "accept": accept})
+    for i, (question, accept) in enumerate(_CASUAL_RECALL_PROBES, start=1):
+        questions.append({"id": f"c{i:02d}", "type": "recall", "question": question, "accept": accept})
     for i, question in enumerate(_UNANSWERABLE_PROBES, start=1):
         questions.append({"id": f"u{i:02d}", "type": "unanswerable", "question": question, "accept": []})
     for i, (question, accept) in enumerate(_GENERAL_PROBES, start=1):

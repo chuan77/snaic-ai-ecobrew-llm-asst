@@ -30,11 +30,19 @@ def test_sft_rows_include_the_facts_casual_phrasing():
 
 
 def test_eval_questions_shape():
-    assert len(EVAL_QUESTIONS) == 36
+    assert len(EVAL_QUESTIONS) == 56
     types = [q["type"] for q in EVAL_QUESTIONS]
-    assert types.count("recall") == 20
+    assert types.count("recall") == 40
     assert types.count("unanswerable") == 8
     assert types.count("general") == 8
+
+
+def test_eval_casual_recall_probes_are_distinct_from_sft_casual_phrasing():
+    rows = build_sft_rows()
+    sft_casual_questions = {fact["casual"] for fact in FACTS}
+    eval_casual_questions = {q["question"] for q in EVAL_QUESTIONS if q["id"].startswith("c")}
+    assert len(eval_casual_questions) == 20
+    assert sft_casual_questions.isdisjoint(eval_casual_questions)
 
 
 def test_eval_recall_questions_differ_from_sft_phrasing():
