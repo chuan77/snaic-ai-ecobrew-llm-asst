@@ -81,3 +81,34 @@ def test_answer_mentioning_ecobrew_gets_fact_checked_even_without_a_keyword_in_t
     )
     assert answer == ABSTAIN
     assert overridden is True
+
+
+def test_fabricated_multi_model_answer_with_coincidental_price_substrings_is_overridden():
+    # Reproduces the exact bug report: a keyword-less compound question gets a
+    # fabricated answer whose "$89.99"/"$149.99" would, under plain substring
+    # matching, coincidentally "verify" against the real accept-strings "89"
+    # (EcoBrew One) and "149" (EcoBrew Pro) -- even though every price and two
+    # of the three product names in the answer are wrong.
+    answer, overridden = validate_answer(
+        "What are the available models and how much does each models cost?",
+        "EcoBrew costs $89.99, Smart Brew costs $149.99, and Max Pro costs $249.99.",
+        FACTS,
+    )
+    assert answer == ABSTAIN
+    assert overridden is True
+
+
+def test_accept_matches_numeric_accept_string_requires_a_boundary():
+    from guardrail.validate import _accept_matches
+
+    assert _accept_matches("89", "the ecobrew one costs $89.") is True
+    assert _accept_matches("89", "it costs 89 dollars") is True
+    assert _accept_matches("89", "the total came to $89.99") is False
+    assert _accept_matches("89", "a batch of 1890 units") is False
+
+
+def test_accept_matches_non_numeric_accept_string_still_uses_plain_substring():
+    from guardrail.validate import _accept_matches
+
+    assert _accept_matches("sprout", "the voice assistant is called sprout") is True
+    assert _accept_matches("2-year", "backed by a 2-year warranty") is True

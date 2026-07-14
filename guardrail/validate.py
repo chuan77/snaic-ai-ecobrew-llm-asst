@@ -12,6 +12,20 @@ _WORD_RE = re.compile(r"[a-z0-9]+")
 # always ordinary sentence words ("ecobrew need descaling"), not model names.
 _VARIANT_RE = re.compile(r"EcoBrew\+?\s+([A-Z][a-zA-Z]*)")
 
+_NUMERIC_ACCEPT_RE = re.compile(r"\A\d+(\.\d+)?\Z")
+
+
+def _accept_matches(accept, normalized_answer):
+    """Substring match for most accept-strings; boundary-aware for purely
+    numeric ones, so e.g. accept "89" doesn't match inside "89.99" or "1890" --
+    a fabricated compound answer can otherwise "verify" itself by coincidence
+    when no specific variant scopes the check (see _relevant_facts)."""
+    normalized_accept = _norm(accept)
+    if not _NUMERIC_ACCEPT_RE.fullmatch(normalized_accept):
+        return normalized_accept in normalized_answer
+    pattern = re.compile(r"(?<!\d)" + re.escape(normalized_accept) + r"(?!\d)(?!\.\d)")
+    return pattern.search(normalized_answer) is not None
+
 
 def _corpus_words(facts):
     words = set()
@@ -65,7 +79,7 @@ def validate_answer(question, raw_answer, facts=FACTS):
 
     normalized = _norm(raw_answer)
     for fact in _relevant_facts(question, facts):
-        if any(_norm(accept) in normalized for accept in fact["accept"]):
+        if any(_accept_matches(accept, normalized) for accept in fact["accept"]):
             return raw_answer, False
 
     return ABSTAIN, True
