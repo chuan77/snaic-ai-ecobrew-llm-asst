@@ -6,3 +6,4 @@ __pycache__/
 artifacts/
 models/v2/sft_out/
 models/v2/dpo_out/
+v2_regression_log_*.csv
