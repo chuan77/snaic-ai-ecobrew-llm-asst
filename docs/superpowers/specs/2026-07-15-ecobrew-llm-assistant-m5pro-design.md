@@ -181,6 +181,25 @@ No unit-test suite (this is a notebook, matching the existing project's testing 
 - Phase 4/5: adapter directories (`models/sft_lora`, `models/dpo_lora`) contain `adapter_model.safetensors` + `adapter_config.json` after training; harness scores improve recall vs. Phase 2's zero-shot baseline.
 - Phase 6: regression suite (current notebook's Cell 10 logic) reports Pass on the guardrail test cases, driven against the live Gradio server the same way `TESTs.md` currently verifies the existing notebook.
 
+> **Post-hoc note (2026-07-15, final whole-branch review):** this criterion was not
+> fully met. The regression suite (notebook Cell 18) fails 2 of 5 cases — both
+> "Hardware Limit Boundary Check" tests (overkill temperature, cold brew) — while
+> recall/on-topic and the off-topic/prompt-injection case pass. Root cause: SFT trains
+> with no system prompt, DPO trains against the eval harness's minimal
+> `SYSTEM_PROMPT_EVAL`, and serving's `ecobrew_assistant` uses a third, different
+> hardened system prompt — the refusal behavior DPO tried to instill was conditioned on
+> a prompt distribution serving never uses, and only 2 of 78 DPO preference pairs were
+> guardrail-specific to begin with. A related regression was also found: the eval
+> harness's `abstain` metric went 0.4 (base) → 0.0 (SFT) → 0.0 (DPO) — the model now
+> fabricates answers to unanswerable questions instead of declining (only 4 of 78 DPO
+> pairs were anti-fabrication pairs). Both are documented in detail in the notebook's
+> final "Known Limitations" cell. **Accepted disposition, per explicit user decision on
+> 2026-07-15: ship with these documented limitations rather than fix them now.**
+> Recommended (not implemented) follow-ups: a deterministic numeric-temperature
+> pre-filter analogous to the existing `SAFETY_KEYWORDS` keyword pre-filter;
+> upweighting/duplicating the guardrail and anti-fabrication DPO pairs; and aligning the
+> DPO training system prompt with the serving system prompt.
+
 ## Known gotchas carried forward (not to rediscover)
 
 1. `gradient_checkpointing` defaults on in both `SFTConfig` and `DPOConfig` — must be disabled before eval/inference or `generate()` produces degenerate repeated-token output despite `use_cache` reporting `True`.
