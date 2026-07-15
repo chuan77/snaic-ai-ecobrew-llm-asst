@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .venv/
 artifacts/
+models/v2/sft_out/
+models/v2/dpo_out/
