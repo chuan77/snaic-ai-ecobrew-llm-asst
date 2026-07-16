@@ -1,9 +1,0 @@
-mlx
-mlx-lm
-torch
-transformers
-peft
-trl
-accelerate
-gradio
-pytest

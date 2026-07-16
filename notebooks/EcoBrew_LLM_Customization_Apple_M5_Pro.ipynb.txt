@@ -1,0 +1,329 @@
+--- CELL 0 (markdown) ---
+# 🌟 EcoBrew Smart Coffee Maker LLM Assistant
+## Full End-to-End Customization on Apple M5 Pro
+
+**Aligned with NVIDIA "Adding New Knowledge to Existing LLMs" Workflow**
+
+This notebook implements the full pipeline using **Apple MLX** (optimized for M5 Pro) + Hugging Face tools.
+All training data is stored in the `data/` project folder as requested.
+
+--- CELL 1 (code) ---
+# Cell 0: Project Setup with Correct Paths
+from pathlib import Path
+
+# Since notebook is in notebooks/, go up one level
+PROJECT_ROOT = Path("..").resolve()
+DATA_DIR = PROJECT_ROOT / "data"
+MODELS_DIR = PROJECT_ROOT / "models"
+
+for p in [DATA_DIR / d for d in ["raw", "synthetic", "curated", "train", "val"]] + \
+         [MODELS_DIR / d for d in ["base", "sft_lora", "final"]]:
+    p.mkdir(parents=True, exist_ok=True)
+
+print(f"✅ Project Root: {PROJECT_ROOT}")
+print(f"📁 Data Dir: {DATA_DIR}")
+print(f"📁 Models Dir: {MODELS_DIR}")
+
+--- CELL 2 (markdown) ---
+## Phase 1: Task Definition (NVIDIA Task Definition)
+
+--- CELL 3 (code) ---
+# Cell 1: Task Definition & Domain Knowledge
+ecobrew_knowledge = """
+EcoBrew Smart Coffee Maker (Fictitious Product):
+- 20 brew profiles with temperature (88-96°C) and grind control
+- IoT app scheduling, smart home integration
+- Closed-loop feedback learning
+- Auto maintenance & sustainability features
+"""
+
+task = {
+    "taxonomy": ["Brewing", "Maintenance", "Troubleshooting", "Smart Features"],
+    "schema": {"query": "str", "response": "str", "json_output": "dict"},
+    "success": ["Relevance", "JSON validity", "User satisfaction"]
+}
+import json
+print(json.dumps(task, indent=2))
+
+--- CELL 4 (markdown) ---
+## Phase 2: Setup & Model Loading
+
+--- CELL 5 (code) ---
+# Cell 2: Install Dependencies (Run once)
+!pip install mlx mlx-lm transformers datasets peft trl tqdm pandas scikit-learn
+
+--- CELL 6 (code) ---
+# Cell 3 (Grounded version): Recommended to keep synthetic data on-brand and high quality
+from mlx_lm import load, generate
+from mlx_lm.sample_utils import make_sampler
+import time
+
+model, tokenizer = load("mlx-community/Llama-3.2-3B-Instruct-4bit")
+
+ecobrew_knowledge = """
+EcoBrew Smart Coffee Maker: Precision brewing (88-96°C), 20 profiles, IoT app scheduling, 
+closed-loop feedback learning, auto maintenance alerts, sustainability tracking.
+"""
+
+def generate_response(prompt, max_tokens=512, temperature=0.7, retries=2):
+    """Grounded generation using MLX sampler to avoid hallucinations"""
+    for attempt in range(retries + 1):
+        try:
+            full_prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+You are EcoBrew, the official and helpful AI assistant for the EcoBrew Smart Coffee Maker. 
+
+Use ONLY the following verified product details to answer:
+{ecobrew_knowledge}
+
+Instructions:
+1. Provide a direct, short answer (maximum 3 sentences).
+2. Do not hallucinate or make up features.
+3. Tone should be professional and focused.<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+
+            sampler = make_sampler(temp=temperature)
+
+            response = generate(
+                model, 
+                tokenizer, 
+                prompt=full_prompt, 
+                max_tokens=max_tokens,
+                sampler=sampler,
+                verbose=False
+            )
+            return response.strip()
+            
+        except Exception as e:
+            if attempt < retries:
+                print(f"⚠️ Attempt {attempt+1} failed, retrying...")
+                time.sleep(1)
+            else:
+                print(f"❌ Generation failed: {e}")
+                return "Sorry, I couldn't generate a response right now. Please try again."
+    
+    return "Sorry, I'm having trouble responding."
+
+--- CELL 7 (markdown) ---
+## Phase 3: Baseline Evaluation (NVIDIA Eval)
+
+--- CELL 8 (code) ---
+# Cell 4: Baseline Evaluation (Simple Prompting)
+test_queries = [
+    "How do I brew a strong espresso on EcoBrew?",
+    "The coffee tastes weak, what should I adjust?",
+    "Schedule a low-energy brew for 7 AM tomorrow."
+]
+
+for q in test_queries:
+    print(f"\nQ: {q}")
+    
+    # Better prompt for small model
+    full_prompt = f"""You are a helpful assistant for EcoBrew Smart Coffee Maker.
+User: {q}
+Assistant:"""
+    
+    answer = generate_response(full_prompt, max_tokens=400)
+    print("A:", answer[:600])
+    print("-" * 80)
+
+--- CELL 9 (markdown) ---
+## Phase 4: Synthetic Data Generation (NVIDIA Synthetic Data)
+
+--- CELL 10 (code) ---
+# Cell 5: SDG (Fixed to write actual data)
+import random, json
+from tqdm import tqdm
+
+def generate_synthetic_data(num_samples=300):
+    data = []
+    for _ in tqdm(range(num_samples), desc="Generating data"):
+        prompt = random.choice(test_queries)
+        response = generate_response(prompt, max_tokens=400)
+        # Store flat key-value pairs for easy parsing/filtering in Cell 6
+        data.append({
+            "instruction": prompt,
+            "response": response
+        })
+    
+    with open(DATA_DIR / "synthetic" / "ecobrew_synthetic.jsonl", "w") as f:
+        for item in data:
+            f.write(json.dumps(item) + "\n")
+    print(f"\n✅ Saved {len(data)} examples to ../data/synthetic/")
+
+generate_synthetic_data()
+
+--- CELL 11 (markdown) ---
+## Phase 5: Curation & Train/Val Split (NVIDIA Curation)
+
+--- CELL 12 (code) ---
+# Cell 6: Curation + Split (Fixed to map flat keys to MLX standard format)
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from pathlib import Path
+import json
+
+# Read and filter synthetic data
+df = pd.read_json(DATA_DIR / "synthetic" / "ecobrew_synthetic.jsonl", lines=True)
+df = df[df["response"].str.len() > 80]
+
+# Split data
+train_df, val_df = train_test_split(df, test_size=0.15, random_state=42)
+
+# Format to MLX chat dataset standard
+def format_to_chat(row):
+    return {
+        "messages": [
+            {"role": "user", "content": row["instruction"]},
+            {"role": "assistant", "content": row["response"]}
+        ]
+    }
+
+# Save directly to a single curated folder
+CURATED_DIR = DATA_DIR / "curated"
+CURATED_DIR.mkdir(parents=True, exist_ok=True)
+
+with open(CURATED_DIR / "train.jsonl", "w") as f:
+    for _, row in train_df.iterrows():
+        f.write(json.dumps(format_to_chat(row)) + "\n")
+
+with open(CURATED_DIR / "valid.jsonl", "w") as f:
+    for _, row in val_df.iterrows():
+        f.write(json.dumps(format_to_chat(row)) + "\n")
+
+print(f"Train: {len(train_df)} | Val: {len(val_df)}")
+print(f"✅ Data optimized for MLX and saved to: {CURATED_DIR.absolute()}")
+
+--- CELL 13 (markdown) ---
+## Phase 6: Supervised Fine-Tuning (SFT)
+
+--- CELL 14 (code) ---
+# Cell 7: SFT with MLX LoRA (Best for M5 Pro)
+print("""🚀 Run this in Terminal for LoRA fine-tuning:
+            
+python -m mlx_lm.lora \
+  --model mlx-community/Llama-3.2-3B-Instruct-4bit \
+  --train \
+  --data data/curated \
+  --batch-size 8 \
+  --lora-layers 16 \
+  --iters 800 \
+  --use-chat-template True \
+  --mask-prompt \
+  --steps-per-report 5 \
+  --steps-per-eval 50 \
+  --adapter-path models/sft_lora
+""")
+
+--- CELL 15 (markdown) ---
+## Phase 7: Inference & Evaluation
+
+--- CELL 16 (code) ---
+# Cell 8: Test After Fine-Tuning
+for q in test_queries:
+    print(f"\n=== {q} ===")
+    print(generate_response(q)[:600])
+
+--- CELL 17 (markdown) ---
+## Phase 8: Runtime Closed-Loop Assistant
+
+--- CELL 18 (code) ---
+# Cell 9: Final Assistant
+def ecobrew_assistant(query: str):
+    prompt = f"""You are the EcoBrew Smart Coffee Maker assistant.
+{ecobrew_knowledge}
+Always provide helpful answer and JSON action.
+User: {query}
+Assistant:"""
+    return generate_response(prompt, max_tokens=700)
+
+# Demo
+print(ecobrew_assistant("The brew was too bitter this morning. Suggest adjustment for tomorrow."))
+
+--- CELL 19 (markdown) ---
+## 🎯 Summary & Next Steps
+- All data stored in `data/` folder
+- Workflow mirrors NVIDIA NeMo (Task → Eval → Synthetic → Curation → SFT → Serve)
+- Run LoRA training, then use the final assistant function.
+
+**Ready for production on your Apple M5 Pro!**
+
+--- CELL 20 (code) ---
+# Cell 9: EcoBrew Interactive Chat Assistant (Gradio)
+import gradio as gr
+from mlx_lm import load, generate
+from mlx_lm.sample_utils import make_sampler
+from pathlib import Path
+
+# Setup paths to locate model and adapters
+ADAPTER_PATH = "models/sft_lora"
+
+print("☕ Loading EcoBrew AI with LoRA Adapters...")
+# Load base model along with your freshly trained LoRA adapters
+model, tokenizer = load(
+    "mlx-community/Llama-3.2-3B-Instruct-4bit",
+    adapter_path=ADAPTER_PATH
+)
+
+def ecobrew_chat_assistant(message, history):
+    # Formulate the conversation history into the Llama 3 Chat template format
+    messages = [
+        {"role": "system", "content": "You are EcoBrew, the official, helpful, and concise AI assistant for the EcoBrew Smart Coffee Maker."}
+    ]
+    
+    # Process history dynamically to handle both tuple and dictionary structures
+    for turn in history:
+        if isinstance(turn, dict): # Gradio 5+ format
+            messages.append({"role": turn.get("role", "user"), "content": turn.get("content", "")})
+        elif isinstance(turn, (list, tuple)) and len(turn) == 2: # Legacy format
+            user_msg, assistant_msg = turn
+            if user_msg:
+                messages.append({"role": "user", "content": user_msg})
+            if assistant_msg:
+                messages.append({"role": "assistant", "content": assistant_msg})
+        
+    messages.append({"role": "user", "content": message})
+    
+    try:
+        # Apply Llama 3 chat template
+        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        
+        # Sampler with temperature 0.7 for optimal barista responses
+        sampler = make_sampler(temp=0.7)
+        
+        response = generate(
+            model,
+            tokenizer,
+            prompt=prompt,
+            max_tokens=256,
+            sampler=sampler,
+            verbose=False
+        )
+        return response.strip()
+    except Exception as e:
+        return f"⚠️ Connection error: {str(e)}"
+
+# Define Gradio UI
+with gr.Blocks(title="EcoBrew Assistant", theme=gr.themes.Soft()) as demo:
+    gr.Markdown("# ☕ EcoBrew Smart Coffee Maker")
+    gr.Markdown("### Your Intelligent, Fine-Tuned AI Barista")
+    
+    chatbot = gr.Chatbot(height=500, show_label=False)
+    msg = gr.Textbox(placeholder="Ask anything about brewing profiles, IoT scheduling, or maintenance...", label=None)
+    clear = gr.Button("Clear Chat History")
+    
+    def respond(message, history):
+        response = ecobrew_chat_assistant(message, history)
+        history.append((message, response))
+        return "", history
+        
+    msg.submit(respond, [msg, chatbot], [msg, chatbot])
+    clear.click(lambda: None, None, chatbot, queue=False)
+
+print("🔗 Launching UI Local Server...")
+demo.launch(
+    server_name="127.0.0.1",
+    server_port=7860,
+    share=False,
+    inbrowser=True
+)
